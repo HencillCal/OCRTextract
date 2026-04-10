@@ -13,15 +13,16 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 @app.route("/ocr-api/health")
 def health():
-    return jsonify({"status": "ok", "engine": "unified (Tesseract.js + pytesseract)"})
+    return jsonify({"status": "ok", "engine": "OCRTextract"})
 
 
+@app.route("/ocr-api/extract", methods=["POST"])
 @app.route("/ocr-api/unified", methods=["POST"])
 def unified_extract():
     """
     Accepts:
       image    — base64-encoded image (with or without data: prefix)
-      js_words — optional list of Tesseract.js word objects from the browser
+      js_words — optional list of word objects from the browser OCR pass
       lang     — optional Tesseract language code (default: eng)
     """
     try:
