@@ -1,125 +1,233 @@
 # OCRTextract
 
-> Unified OCR library combining **Tesseract.js** (browser/WebAssembly) and **pytesseract** (Python) into a single ensemble engine for high-accuracy text extraction.
+> High-accuracy text extraction library with ensemble OCR processing and intelligent result merging.
 
-## How it works
-
-Instead of picking one OCR engine, OCRTextract runs both simultaneously and merges their outputs using a confidence-weighted voting algorithm at the word level — where one engine fails, the other compensates.
-
-```
-Image → Tesseract.js (browser)  ──┐
-                                   ├── IoU-based merge → Unified text
-Image → pytesseract × 3 passes  ──┘
-```
-
-### Ensemble pipeline
-
-1. **Tesseract.js** runs in the browser via WebAssembly — zero server round-trip, returns word-level bounding boxes + confidence scores
-2. **pytesseract** runs 3 server-side passes with different page-segmentation modes:
-   - `--psm 3` auto layout (default)
-   - `--psm 6` single uniform block
-   - `--psm 4` single column
-3. All word detections are grouped by bounding box overlap (IoU > 0.4)
-4. For each overlapping group, the word with the **highest confidence score** wins
-5. Results are reconstructed in reading order and post-processed to remove OCR noise
-
----
-
-## Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Browser OCR | [Tesseract.js](https://github.com/naptha/tesseract.js) (WebAssembly) |
-| Server OCR | [pytesseract](https://github.com/madmaze/pytesseract) + Pillow |
-| OCR backend | Python Tesseract engine (via system binary) |
-| Server | Python Flask + flask-cors |
-| Frontend | React + Vite + TypeScript |
-| Merge algo | IoU bounding-box voting + confidence weighting |
-
----
-
-## Project structure
-
-```
-OCRTextract/
-├── python-ocr-server/
-│   ├── ocr_library.py     # UnifiedOCR class — the core ensemble library
-│   ├── server.py          # Flask API server (/ocr-api/unified endpoint)
-│   └── requirements.txt
-└── artifacts/ocr-app/     # React + Vite frontend
-    └── src/
-        ├── App.tsx        # Main OCR UI
-        └── index.css
+```bash
+pip install OCRTextract
 ```
 
 ---
 
-## API
+## Quick start
 
-### `POST /ocr-api/unified`
+```python
+from ocrtextract import OCRTextract
 
-```json
-{
-  "image": "<base64-encoded image>",
-  "js_words": [{ "text": "hello", "confidence": 95, "bbox": { "x0": 10, "y0": 20, "x1": 60, "y1": 40 } }],
-  "lang": "eng"
-}
+ocr = OCRTextract()
+result = ocr.extract("invoice.png")
+
+print(result.text)
+print(result.confidence)   # 0–100
+print(result.word_count)
+```
+
+---
+
+## Features
+
+- **Ensemble processing** — multiple OCR passes with different segmentation strategies, results merged by confidence
+- **Intelligent merging** — word-level bounding box voting picks the best detection for every region
+- **Auto preprocessing** — contrast enhancement, sharpening, and resolution scaling applied before extraction
+- **Noise cleaning** — removes stray symbols, repeated OCR artifacts, and normalizes whitespace
+- **Language support** — any language supported by the Tesseract engine (`eng`, `fra`, `deu`, `chi_sim`, etc.)
+- **Web UI** — browser-based interface with real-time confidence meter and per-pass breakdown
+
+---
+
+## Installation
+
+**Requirements:** Python 3.8+, Tesseract binary
+
+```bash
+# 1. Install the Tesseract binary (required)
+# macOS
+brew install tesseract
+
+# Ubuntu / Debian
+sudo apt install tesseract-ocr
+
+# Windows — download installer from:
+# https://github.com/UB-Mannheim/tesseract/wiki
+
+# 2. Install OCRTextract
+pip install OCRTextract
+```
+
+---
+
+## Usage
+
+### Basic extraction
+
+```python
+from ocrtextract import OCRTextract
+
+ocr = OCRTextract()
+
+# From file path
+result = ocr.extract("document.png")
+
+# From PIL Image
+from PIL import Image
+img = Image.open("scan.tiff")
+result = ocr.extract(img)
+
+print(result.text)
+print(f"Confidence: {result.confidence}%")
+print(f"Words detected: {result.word_count}")
+```
+
+### Language selection
+
+```python
+result = ocr.extract("french_document.png", lang="fra")
+result = ocr.extract("chinese_doc.png", lang="chi_sim")
+```
+
+### Detailed per-pass breakdown
+
+```python
+result = ocr.extract("report.jpg")
+
+for source in result.sources:
+    print(f"{source['engine']}: {source['words']} words @ {source['avg_conf']}% confidence")
+```
+
+### Batch processing
+
+```python
+import os
+from ocrtextract import OCRTextract
+
+ocr = OCRTextract()
+folder = "scans/"
+
+for filename in os.listdir(folder):
+    if filename.endswith((".png", ".jpg", ".tiff")):
+        result = ocr.extract(os.path.join(folder, filename))
+        print(f"{filename}: {result.word_count} words, {result.confidence}% confidence")
+        print(result.text)
+        print("---")
+```
+
+---
+
+## API reference
+
+### `OCRTextract()`
+
+Creates an OCRTextract instance. No arguments required.
+
+---
+
+### `ocr.extract(source, lang="eng")`
+
+Run ensemble OCR on an image.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `source` | `str` or `PIL.Image` | File path or PIL Image object |
+| `lang` | `str` | Tesseract language code (default: `"eng"`) |
+
+**Returns:** `OCRResult`
+
+---
+
+### `OCRResult`
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `.text` | `str` | Extracted and cleaned text |
+| `.confidence` | `float` | Ensemble confidence score (0–100) |
+| `.word_count` | `int` | Number of words detected |
+| `.sources` | `list[dict]` | Per-pass breakdown with engine, words, avg_conf |
+| `.engine` | `str` | Always `"OCRTextract"` |
+
+---
+
+## REST API (server mode)
+
+Start the extraction server:
+
+```bash
+python -m ocrtextract.server --port 5001
+```
+
+### `POST /extract`
+
+```bash
+curl -X POST http://localhost:5001/extract \
+  -H "Content-Type: application/json" \
+  -d '{"image": "<base64-encoded-image>", "lang": "eng"}'
 ```
 
 **Response:**
 ```json
 {
-  "text": "Extracted and merged text...",
+  "text": "Extracted text content...",
+  "confidence": 87.4,
   "word_count": 42,
-  "avg_confidence": 87.4,
+  "engine": "OCRTextract",
   "sources": [
-    { "engine": "pytesseract/auto-layout", "words": 38, "avg_conf": 85.1 },
-    { "engine": "pytesseract/single-block", "words": 41, "avg_conf": 86.7 },
-    { "engine": "pytesseract/single-column", "words": 37, "avg_conf": 84.9 },
-    { "engine": "tesseract.js/browser",     "words": 40, "avg_conf": 88.3 }
-  ],
-  "engine": "unified (Tesseract.js + pytesseract)"
+    { "engine": "pass/auto-layout",   "words": 38, "avg_conf": 85.1 },
+    { "engine": "pass/single-block",  "words": 41, "avg_conf": 86.7 },
+    { "engine": "pass/single-column", "words": 37, "avg_conf": 84.9 }
+  ]
 }
 ```
 
 ---
 
-## Python library usage
+## Web interface
 
-```python
-from ocr_library import UnifiedOCR
-from PIL import Image
+```bash
+# Start the server
+python -m ocrtextract.server
 
-ocr = UnifiedOCR()
-image = Image.open("document.png")
-result = ocr.extract(image)
-
-print(result["text"])
-print(f"Confidence: {result['avg_confidence']}%")
-print(f"Words: {result['word_count']}")
+# In another terminal, start the frontend
+cd frontend
+pnpm install
+pnpm dev
 ```
+
+Open `http://localhost:5173` — drag and drop an image to extract text with live confidence scoring.
 
 ---
 
-## Setup
+## How OCRTextract works
 
-```bash
-# Python server
-pip install flask flask-cors pytesseract Pillow
-# Install Tesseract binary (macOS)
-brew install tesseract
-# Install Tesseract binary (Ubuntu/Debian)
-apt install tesseract-ocr
+OCRTextract runs multiple OCR passes internally, each tuned for a different document layout, then merges the results:
 
-python python-ocr-server/server.py
-
-# Frontend (separate terminal)
-pnpm install
-pnpm --filter @workspace/ocr-app run dev
 ```
+Input image
+    │
+    ├── Pass 1: auto page layout
+    ├── Pass 2: single text block
+    └── Pass 3: single column
+          │
+          ▼
+    Bounding box IoU grouping
+          │
+          ▼
+    Confidence-weighted voting
+          │
+          ▼
+    Text reconstruction + noise cleaning
+          │
+          ▼
+    OCRResult
+```
+
+For each detected word region, the version with the **highest confidence score** across all passes wins. This makes OCRTextract significantly more robust than any single-pass approach, especially on mixed-layout documents, scanned PDFs, and low-quality images.
 
 ---
 
 ## License
 
-MIT
+MIT © 2025 OCRTextract
+
+---
+
+## Contributing
+
+Pull requests welcome. Please open an issue first to discuss what you'd like to change.
