@@ -231,16 +231,17 @@ class UnifiedOCR:
 
         sources = []
         for i, (p, w) in enumerate(zip(_PASSES, py_results)):
-            sources.append(source_stats(w, f"pytesseract/{p['label']}"))
+            sources.append(source_stats(w, f"pass/{p['label']}"))
         if js_result:
-            sources.append(source_stats(js_result, "tesseract.js/browser"))
+            sources.append(source_stats(js_result, "pass/browser-wasm"))
 
         return {
             "text": clean,
             "word_count": len(clean.split()) if clean else 0,
             "avg_confidence": avg_conf,
+            "confidence": avg_conf,
             "sources": sources,
-            "engine": "unified (Tesseract.js + pytesseract)",
+            "engine": "OCRTextract",
         }
 
 
