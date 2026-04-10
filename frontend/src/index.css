@@ -1,0 +1,40 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: 222 47% 7%;
+  --foreground: 213 31% 91%;
+  --border: 217 32% 17%;
+  --card: 222 47% 11%;
+  --card-foreground: 213 31% 91%;
+  --card-border: 217 32% 20%;
+  --sidebar: 222 47% 9%;
+  --sidebar-foreground: 213 31% 91%;
+  --sidebar-border: 217 32% 15%;
+  --sidebar-primary: 246 80% 60%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 222 47% 14%;
+  --sidebar-accent-foreground: 213 31% 91%;
+  --sidebar-ring: 246 80% 60%;
+  --popover: 222 47% 11%;
+  --popover-foreground: 213 31% 91%;
+  --popover-border: 217 32% 20%;
+  --primary: 246 80% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 222 47% 18%;
+  --secondary-foreground: 213 31% 91%;
+  --muted: 222 47% 14%;
+  --muted-foreground: 215 20% 55%;
+  --accent: 246 80% 60%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 217 32% 20%;
+  --ring: 246 80% 60%;
+  --radius: 0.5rem;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e2e8f0; }
